@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Super Banco Imobiliário - Maquininha Digital</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+    body { background-color: #121212; color: #fff; padding: 10px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    
+    .container { width: 100%; max-width: 450px; display: flex; flex-direction: column; gap: 12px; }
+
+    /* Header & Controles */
+    header { display: flex; justify-content: space-between; align-items: center; background: #1e1e1e; padding: 12px 15px; border-radius: 12px; border: 1px solid #333; }
+    h1 { font-size: 1.1rem; color: #e6c619; text-transform: uppercase; letter-spacing: 1px; }
+    .btn-reset { background: #d9534f; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+
+    /* Painel de Jogadores */
+    .players-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .player-card { background: #252525; padding: 10px; border-radius: 8px; border-left: 6px solid #ccc; display: flex; flex-direction: column; gap: 4px; position: relative; }
+    .player-card.selected-from { outline: 2px solid #ff4d4d; }
+    .player-card.selected-to { outline: 2px solid #2ecc71; }
+    .player-name { font-size: 0.85rem; font-weight: bold; color: #bbb; display: flex; justify-content: space-between; }
+    .player-balance { font-size: 1.1rem; font-weight: bold; color: #fff; }
+    .quick-go { background: #333; color: #2ecc71; border: 1px solid #2ecc71; padding: 3px 6px; font-size: 0.75rem; border-radius: 4px; margin-top: 4px; cursor: pointer; font-weight: bold; text-align: center; }
+
+    /* Maquininha */
+    .machine { background: #222; border: 3px solid #444; border-radius: 20px; padding: 15px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); }
+    
+    /* Seletor de De/Para */
+    .selectors { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .select-box { display: flex; flex-direction: column; gap: 4px; }
+    .select-box label { font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
+    .label-from { color: #ff6b6b; }
+    .label-to { color: #51cf66; }
+    select { background: #111; color: #fff; border: 1px solid #444; padding: 8px; border-radius: 6px; font-size: 0.9rem; font-weight: bold; }
+
+    /* Visor LCD */
+    .lcd-display { background: #7a9a60; color: #0d1b07; border: 4px solid #556b43; border-radius: 8px; padding: 10px; text-align: right; font-family: 'Courier New', monospace; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
+    .lcd-status { font-size: 0.75rem; text-transform: uppercase; text-align: left; height: 16px; font-weight: bold; color: #1c330e; }
+    .lcd-value { font-size: 1.8rem; font-weight: bold; letter-spacing: 1px; }
+
+    /* Teclado */
+    .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .keypad button { background: #333; color: white; border: none; padding: 14px 0; font-size: 1.2rem; font-weight: bold; border-radius: 10px; cursor: pointer; box-shadow: 0 4px #1a1a1a; active: translateY(2px); }
+    .keypad button:active { transform: translateY(2px); box-shadow: 0 2px #1a1a1a; }
+    
+    .btn-m { background: #e67e22 !important; box-shadow: 0 4px #a0522d !important; }
+    .btn-k { background: #2980b9 !important; box-shadow: 0 4px #1c5980 !important; }
+    .btn-c { background: #c0392b !important; box-shadow: 0 4px #7b241c !important; }
+    .btn-ok { background: #27ae60 !important; box-shadow: 0 4px #1e8449 !important; grid-column: span 3; font-size: 1.4rem !important; }
+
+    /* Log */
+    .log-box { background: #1e1e1e; border-radius: 8px; padding: 10px; max-height: 120px; overflow-y: auto; border: 1px solid #333; font-size: 0.8rem; color: #aaa; }
+    .log-item { margin-bottom: 4px; border-bottom: 1px solid #2a2a2a; padding-bottom: 2px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Super Banco Digital</h1>
+    <button class="btn-reset" onclick="resetGame()">Novo Jogo</button>
+  </header>
+
+
+  <div class="machine">
+    <div class="selectors">
+      <div class="select-box">
+        <label class="label-from">Pagador (-)</label>
+        <select id="selectFrom" onchange="updateUI()"></select>
+      </div>
+      <div class="select-box">
+        <label class="label-to">Recebedor (+)</label>
+        <select id="selectTo" onchange="updateUI()"></select>
+      </div>
+    </div>
+
+    <div class="lcd-display">
+      <div class="lcd-status" id="lcdStatus">Aguardando Operação</div>
+      <div class="lcd-value" id="lcdValue">$0</div>
+    </div>
+
+    <div class="keypad">
+      <button class="btn-m" onclick="pressM()">M</button>
+      <button class="btn-c" onclick="pressC()">C</button>
+      <button class="btn-k" onclick="pressK()">K</button>
+
+      <button onclick="pressNum('7')">7</button>
+      <button onclick="pressNum('8')">8</button>
+      <button onclick="pressNum('9')">9</button>
+
+      <button onclick="pressNum('4')">4</button>
+      <button onclick="pressNum('5')">5</button>
+      <button onclick="pressNum('6')">6</button>
+
+      <button onclick="pressNum('1')">1</button>
+      <button onclick="pressNum('2')">2</button>
+      <button onclick="pressNum('3')">3</button>
+
+      <button onclick="pressNum('0')" style="grid-column: span 2;">0</button>
+      <button onclick="pressNum('00')">00</button>
+
+      <button class="btn-ok" onclick="confirmTransaction()">➔ CONFIRMAR</button>
+    </div>
+  </div>
+
+  <div class="log-box" id="logBox">
+    <div class="log-item">Jogo iniciado. Saldo inicial: $25.000</div>
+  </div>
+  
+  <div class="players-grid" id="playersContainer"></div>
+</div>
+
+<script>
+  const INITIAL_BALANCE = 25000;
+  
+  let players = [
+    { id: 'p1', name: 'Verde', color: '#8cc63f', balance: INITIAL_BALANCE },
+    { id: 'p2', name: 'Vermelho', color: '#e74c3c', balance: INITIAL_BALANCE },
+    { id: 'p3', name: 'Roxo', color: '#9b59b6', balance: INITIAL_BALANCE },
+    { id: 'p4', name: 'Branco', color: '#ecf0f1', balance: INITIAL_BALANCE },
+    { id: 'p5', name: 'Azul', color: '#3498db', balance: INITIAL_BALANCE },
+    { id: 'p6', name: 'Amarelo', color: '#f1c40f', balance: INITIAL_BALANCE }
+  ];
+
+  let rawInput = "";
+  let calculatedValue = 0;
+
+  function init() {
+    populateSelectors();
+    renderPlayers();
+    updateDisplay();
+  }
+
+  function populateSelectors() {
+    const fromSel = document.getElementById('selectFrom');
+    const toSel = document.getElementById('selectTo');
+
+    let optionsBankFrom = `<option value="bank">BANCO</option>`;
+    let optionsBankTo = `<option value="bank">BANCO</option>`;
+    
+    let playerOptions = players.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+    fromSel.innerHTML = playerOptions + optionsBankFrom;
+    toSel.innerHTML = optionsBankTo + playerOptions;
+
+    // Padrão: Pagador = Cartão 1, Recebedor = Banco
+    fromSel.value = 'p1';
+    toSel.value = 'bank';
+  }
+
+  function renderPlayers() {
+    const container = document.getElementById('playersContainer');
+    const fromVal = document.getElementById('selectFrom').value;
+    const toVal = document.getElementById('selectTo').value;
+
+    container.innerHTML = players.map(p => {
+      let isFrom = p.id === fromVal;
+      let isTo = p.id === toVal;
+      let classExt = isFrom ? 'selected-from' : (isTo ? 'selected-to' : '');
+
+      return `
+        <div class="player-card ${classExt}" style="border-left-color: ${p.color}">
+          <div class="player-name">
+            <span>${p.name}</span>
+          </div>
+          <div class="player-balance">$${p.balance.toLocaleString('pt-BR')}</div>
+          <button class="quick-go" onclick="quickPassGo('${p.id}')">+ $2.000 (INÍCIO)</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function pressNum(num) {
+    if (rawInput.length < 7) {
+      rawInput += num;
+      calculatedValue = parseInt(rawInput) || 0;
+      updateDisplay();
+    }
+  }
+
+  function pressM() {
+    if (rawInput !== "") {
+      calculatedValue = (parseInt(rawInput) || 0) * 1000;
+      updateDisplay();
+    }
+  }
+
+  function pressK() {
+    if (rawInput !== "") {
+      calculatedValue = parseInt(rawInput) || 0;
+      updateDisplay();
+    }
+  }
+
+  function pressC() {
+    rawInput = "";
+    calculatedValue = 0;
+    updateDisplay();
+  }
+
+  function updateDisplay() {
+    document.getElementById('lcdValue').innerText = "$" + calculatedValue.toLocaleString('pt-BR');
+  }
+
+  function updateUI() {
+    renderPlayers();
+  }
+
+  function quickPassGo(playerId) {
+    const player = players.find(p => p.id === playerId);
+    if (player) {
+      player.balance += 2000;
+      addLog(`[INÍCIO] ${player.name} recebeu $2.000 do Banco.`);
+      renderPlayers();
+    }
+  }
+
+  function confirmTransaction() {
+    const fromId = document.getElementById('selectFrom').value;
+    const toId = document.getElementById('selectTo').value;
+
+    if (fromId === toId) {
+      alert("O pagador e o recebedor não podem ser a mesma origem!");
+      return;
+    }
+
+    if (calculatedValue <= 0) {
+      alert("Digite um valor válido para a transação.");
+      return;
+    }
+
+    let fromPlayer = players.find(p => p.id === fromId);
+    let toPlayer = players.find(p => p.id === toId);
+
+    // Debitar
+    if (fromPlayer) {
+      fromPlayer.balance -= calculatedValue;
+    }
+
+    // Creditar
+    if (toPlayer) {
+      toPlayer.balance += calculatedValue;
+    }
+
+    // Log
+    let fromName = fromPlayer ? fromPlayer.name : "BANCO";
+    let toName = toPlayer ? toPlayer.name : "BANCO";
+    addLog(`$${calculatedValue.toLocaleString('pt-BR')}: ${fromName} ➔ ${toName}`);
+
+    // Limpar
+    pressC();
+    renderPlayers();
+  }
+
+  function addLog(msg) {
+    const logBox = document.getElementById('logBox');
+    const item = document.createElement('div');
+    item.className = 'log-item';
+    item.innerText = msg;
+    logBox.prepend(item);
+  }
+
+  function resetGame() {
+    if (confirm("Deseja reiniciar o jogo? Todos os saldos voltarão para $25.000.")) {
+      players.forEach(p => p.balance = INITIAL_BALANCE);
+      document.getElementById('logBox').innerHTML = '<div class="log-item">Jogo reiniciado. Saldo inicial: $25.000</div>';
+      pressC();
+      renderPlayers();
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
